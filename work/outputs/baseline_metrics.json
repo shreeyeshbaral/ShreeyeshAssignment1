@@ -1,0 +1,24 @@
+{
+  "task": "Lane 4 \u2014 CTR Opportunity Baseline",
+  "working_slice_n": 22006,
+  "scored_n": 11543,
+  "base_rate_under_ctr": 0.4684,
+  "precision_at_10": 0.5,
+  "precision_at_20": 0.4,
+  "precision_at_50": 0.34,
+  "score_formula": "visible * actionable * log1p(impressions_90d) * (1 + stale)",
+  "thresholds": {
+    "visible": "impressions_90d >= 500",
+    "actionable": "3 < avg_position <= 20",
+    "stale": "days_since_last_update >= 90"
+  },
+  "reason_codes": [
+    "stale_ctr_opportunity",
+    "fresh_ctr_opportunity",
+    "no_opportunity"
+  ],
+  "signal_verdicts": {
+    "ctr_vs_position": "CONFIRMED",
+    "staleness_vs_under_ctr": "MIXED"
+  }
+}
