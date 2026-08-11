@@ -1,0 +1,50 @@
+{
+  "task": "Lane 4 \u2014 CTR Opportunity Model (ML-08)",
+  "seed": 42,
+  "split": "GroupShuffleSplit by client_id, 75/25",
+  "train_n": 17396,
+  "test_n": 4610,
+  "test_base_rate": 0.4785,
+  "models": {
+    "rule_baseline": {
+      "precision_at_10": 0.2,
+      "precision_at_20": 0.2,
+      "precision_at_50": 0.4,
+      "auc": 0.4738
+    },
+    "logistic_regression": {
+      "precision_at_10": 0.8,
+      "precision_at_20": 0.7,
+      "precision_at_50": 0.74,
+      "auc": 0.7038
+    },
+    "random_forest": {
+      "precision_at_10": 0.7,
+      "precision_at_20": 0.8,
+      "precision_at_50": 0.76,
+      "auc": 0.7193
+    }
+  },
+  "top_features": [
+    {
+      "feature": "days_with_sessions",
+      "importance_mean": 0.03942486683572098
+    },
+    {
+      "feature": "engagement_rate",
+      "importance_mean": 0.022443847365300706
+    },
+    {
+      "feature": "pageviews_90d",
+      "importance_mean": 0.01351145077032373
+    },
+    {
+      "feature": "impressions_90d",
+      "importance_mean": 0.012978407097267507
+    },
+    {
+      "feature": "sessions_90d",
+      "importance_mean": 0.009355507140561947
+    }
+  ]
+}
