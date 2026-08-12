@@ -1,0 +1,55 @@
+{
+  "task": "Lane 4 \u2014 CTR Action Playbook (ML-10)",
+  "seed": 42,
+  "total_pages_scored": 22006,
+  "pages_flagged": 12616,
+  "base_rate": 0.4684,
+  "model_auc_grouped": 0.7193,
+  "model_precision_at_50_grouped": 0.76,
+  "reason_code_counts": {
+    "no_action_needed": 8052,
+    "general_ctr_opportunity": 7419,
+    "low_session_consistency": 4405,
+    "position_decay_risk": 1788,
+    "high_volume_underperformer": 342
+  },
+  "top_20_avg_score": 0.7734,
+  "top_20_avg_impressions": 996.0,
+  "drift_baselines": {
+    "days_with_sessions": {
+      "mean": 16.8,
+      "std": 18.77,
+      "median": 9.0,
+      "p25": 4.0,
+      "p75": 22.0
+    },
+    "engagement_rate": {
+      "mean": 2.83,
+      "std": 7.47,
+      "median": 0.0,
+      "p25": 0.0,
+      "p75": 2.78
+    },
+    "impressions_90d": {
+      "mean": 7080.76,
+      "std": 19319.56,
+      "median": 1704.5,
+      "p25": 524.0,
+      "p75": 5902.75
+    },
+    "pageviews_90d": {
+      "mean": 66.44,
+      "std": 174.63,
+      "median": 16.0,
+      "p25": 5.0,
+      "p75": 52.0
+    },
+    "avg_position": {
+      "mean": 17.31,
+      "std": 14.13,
+      "median": 12.3,
+      "p25": 7.0,
+      "p75": 23.8
+    }
+  }
+}
