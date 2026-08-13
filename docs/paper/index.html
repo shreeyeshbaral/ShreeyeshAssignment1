@@ -65,11 +65,7 @@
   <section id="abstract">
     <div class="abstract-box">
       <span class="abstract-label">Abstract</span>
-      Content teams managing thousands of web pages need to know which pages waste the most visibility — pages that receive impressions but fail to convert them into clicks at the rate their position tier would predict.
-      Using 30,000 page-level records sampled from a 79-million-row anonymized production search dataset, we trained a Random Forest classifier to rank pages by their probability of under-performing their position-tier median CTR, evaluated with a client-grouped holdout split that prevents data leakage across client portfolios.
-      The model achieved Precision@50&nbsp;=&nbsp;0.76 and AUC&nbsp;=&nbsp;0.72 on held-out clients, compared with Precision@50&nbsp;=&nbsp;0.40 and AUC&nbsp;=&nbsp;0.47 for a transparent rule baseline — an observed improvement of approximately 1.9× in queue precision.
-      Session consistency (<code>days_with_sessions</code>) and engagement rate emerged as the most informative ranking signals, suggesting that on-site behavior patterns carry predictive value beyond raw position and volume.
-      The output is a ranked action queue with reason codes, designed as a decision-support tool for editors prioritizing which pages to review first.
+      FlyRank builds content as infrastructure — researching, publishing, and optimizing thousands of content assets across client portfolios. To manage performance, FlyRank currently relies on hand-written heuristic flags (such as static CTR thresholds) to spot underperforming content for editorial review. However, fixed rules generate bloated review queues and fail to account for position context or subtle engagement signals. Using 30,000 page-level records sampled from a 79-million-row anonymized production search dataset across 32 clients, we trained a Random Forest classifier to rank published pages by their probability of under-performing their position-tier median CTR, evaluated with a client-grouped holdout split to prevent data leakage across client portfolios. The model achieved Precision@50&nbsp;=&nbsp;0.76 and AUC&nbsp;=&nbsp;0.72 on held-out clients, compared with Precision@50&nbsp;=&nbsp;0.40 and AUC&nbsp;=&nbsp;0.47 for FlyRank's transparent rule baseline — an observed 1.9× improvement in queue precision. Session consistency (<code>days_with_sessions</code>) and engagement rate emerged as the most informative ranking signals, showing that on-site user behavior carries predictive value for search CTR gaps. The output is a position-adjusted, volume-weighted ranked action queue with reason codes, enabling content teams to prioritize title, snippet, and metadata optimizations on high-leverage published assets.
     </div>
   </section>
 
@@ -81,19 +77,22 @@
     <h2>Introduction</h2>
 
     <p>
-      A content team managing a large web portfolio faces a deceptively simple problem: <strong>which pages should they review first?</strong> With thousands of pages indexed in search results, an editor cannot manually inspect each one. The current options are either scanning pages by hand (slow, inconsistent) or applying a single-threshold rule like "flag every page with CTR&nbsp;&lt;&nbsp;0.5%" (which, in this dataset, flags 9,759 pages — roughly 195 review cycles at a capacity of 50&nbsp;pages per cycle).
+      FlyRank builds content as infrastructure — researching, writing, publishing, and continuously monitoring search performance across client portfolios. A core operational challenge in managing thousands of published assets is prioritizing content maintenance: <strong>which published pages should content teams review first?</strong> With vast portfolios indexed in search results, manual inspection of every page is infeasible.
     </p>
     <p>
-      The difficulty is that a low CTR is not inherently a problem. A page ranking at position 18 naturally receives fewer clicks than a page at position 3. What matters is whether a page's CTR is <strong>low relative to comparable pages in the same position tier</strong>. That gap — between observed CTR and what peers achieve — is the opportunity signal.
+      To tackle this at scale, FlyRank's product suite uses hand-written heuristic flags (e.g. fixed rules like "flag every page with CTR&nbsp;&lt;&nbsp;0.5%"). While reliable, fixed threshold rules create severe operational bottlenecks: in this dataset, a single fixed CTR rule flags 9,759 pages — representing roughly 195 review cycles for editorial teams operating at a capacity of 50&nbsp;pages per cycle. Furthermore, simple rules treat position 3 and position 18 identically and ignore multi-signal engagement context.
     </p>
     <p>
-      This paper presents a machine-learning approach to ranking pages by their CTR opportunity, adjusted for position tier and weighted by volume. The research question:
+      The core technical problem is that a low CTR is not an absolute defect — a page ranking at position 18 naturally receives far fewer clicks than a page at position 3. The actionable opportunity signal is whether a page's CTR is <strong>low relative to comparable pages in the same position tier</strong>. That position-adjusted gap, weighted by impression volume, represents true CTR opportunity.
+    </p>
+    <p>
+      This paper presents a machine-learning approach to ranking FlyRank's published content by position-adjusted CTR opportunity, replacing fixed rule flags with a learned, volume-weighted priority queue. The central research question:
     </p>
     <div class="callout info">
-      <p><strong>Which visible pages under-capture clicks or engagement relative to their position tier, and should be reviewed first for metadata, content, or monitoring improvements?</strong></p>
+      <p><strong>Which visible pages in a published portfolio under-capture clicks or engagement relative to their position tier, and should be reviewed first for metadata, content, or monitoring improvements?</strong></p>
     </div>
     <p>
-      The unit of analysis is a <strong>page</strong> (identified by an anonymized content ID). The output is a <strong>ranked queue</strong> with reason codes. A content editor or SEO specialist acts on the queue by rewriting titles or meta descriptions (CTR gap), improving on-page structure (engagement gap), or flagging pages for monitoring. The cost of a wrong recommendation is 15–30 minutes of wasted editor time per false positive; the cost of a miss is wasted visibility that compounds over time.
+      The unit of analysis is a <strong>page</strong> (identified by an anonymized content ID). The output is a <strong>ranked queue</strong> with reason codes (e.g., High-Volume Underperformer, Position Decay Risk, Low Session Consistency). Content editors use this decision-support queue to audit titles, meta descriptions, or content structure. The cost of a false positive is 15–30 minutes of wasted editor time per page; the cost of a miss is compounding wasted search visibility across client portfolios.
     </p>
   </section>
 
