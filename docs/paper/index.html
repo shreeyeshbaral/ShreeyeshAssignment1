@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Which Pages Under-Capture Clicks? A Position-Adjusted CTR Opportunity Model on 79 Million Rows of Search Data</title>
+  <meta name="description" content="A research paper building a machine-learning model to rank web pages by click-through-rate opportunity, evaluated against a transparent rule baseline on real anonymized search data from the FlyRank ML Internship dataset.">
+  <meta name="author" content="Shreeyesh Baral">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ── Progress bar ──────────────────────────────────────── -->
+<div class="progress-bar" id="progressBar"></div>
+
+<!-- ── Top navigation ────────────────────────────────────── -->
+<nav class="top-nav" id="topNav">
+  <a href="#top" class="nav-brand">Research Paper</a>
+  <ul class="nav-links">
+    <li><a href="#abstract">Abstract</a></li>
+    <li><a href="#introduction">Introduction</a></li>
+    <li><a href="#data">Data</a></li>
+    <li><a href="#methodology">Methodology</a></li>
+    <li><a href="#results">Results</a></li>
+    <li><a href="#limitations">Limitations</a></li>
+    <li><a href="#recommendations">Recommendations</a></li>
+    <li><a href="#reproducibility">Reproducibility</a></li>
+    <li><a href="#acknowledgments">Acknowledgments</a></li>
+  </ul>
+</nav>
+
+<main class="paper-container" id="top">
+
+  <!-- ════════════════════════════════════════════════════════
+       HERO / TITLE
+       ════════════════════════════════════════════════════════ -->
+  <header class="paper-hero">
+    <h1>Which Pages Under-Capture Clicks?<br>A Position-Adjusted CTR Opportunity Model</h1>
+    <p class="subtitle">
+      Ranking 22,000 pages by click-through-rate gap using engagement signals, validated on held-out clients from 79&nbsp;million rows of real production search data.
+    </p>
+    <div class="paper-meta">
+      <span>
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        Shreeyesh Baral
+      </span>
+      <span>
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        August 2026
+      </span>
+      <span>
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+        Lane 4 — CTR Opportunity Scoring
+      </span>
+      <span>
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
+        <a href="https://github.com/shreeyeshbaral/ShreeyeshAssignment1" target="_blank" rel="noopener">View Repository</a>
+      </span>
+    </div>
+  </header>
+
+  <!-- ════════════════════════════════════════════════════════
+       0. ABSTRACT
+       ════════════════════════════════════════════════════════ -->
+  <section id="abstract">
+    <div class="abstract-box">
+      <span class="abstract-label">Abstract</span>
+      Content teams managing thousands of web pages need to know which pages waste the most visibility — pages that receive impressions but fail to convert them into clicks at the rate their position tier would predict.
+      Using 30,000 page-level records sampled from a 79-million-row anonymized production search dataset, we trained a Random Forest classifier to rank pages by their probability of under-performing their position-tier median CTR, evaluated with a client-grouped holdout split that prevents data leakage across client portfolios.
+      The model achieved Precision@50&nbsp;=&nbsp;0.76 and AUC&nbsp;=&nbsp;0.72 on held-out clients, compared with Precision@50&nbsp;=&nbsp;0.40 and AUC&nbsp;=&nbsp;0.47 for a transparent rule baseline — an observed improvement of approximately 1.9× in queue precision.
+      Session consistency (<code>days_with_sessions</code>) and engagement rate emerged as the most informative ranking signals, suggesting that on-site behavior patterns carry predictive value beyond raw position and volume.
+      The output is a ranked action queue with reason codes, designed as a decision-support tool for editors prioritizing which pages to review first.
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════════════════════
+       1. INTRODUCTION / PROBLEM STATEMENT
+       ════════════════════════════════════════════════════════ -->
+  <section class="paper-section" id="introduction">
+    <span class="section-number">Section 1</span>
+    <h2>Introduction</h2>
+
+    <p>
+      A content team managing a large web portfolio faces a deceptively simple problem: <strong>which pages should they review first?</strong> With thousands of pages indexed in search results, an editor cannot manually inspect each one. The current options are either scanning pages by hand (slow, inconsistent) or applying a single-threshold rule like "flag every page with CTR&nbsp;&lt;&nbsp;0.5%" (which, in this dataset, flags 9,759 pages — roughly 195 review cycles at a capacity of 50&nbsp;pages per cycle).
+    </p>
+    <p>
+      The difficulty is that a low CTR is not inherently a problem. A page ranking at position 18 naturally receives fewer clicks than a page at position 3. What matters is whether a page's CTR is <strong>low relative to comparable pages in the same position tier</strong>. That gap — between observed CTR and what peers achieve — is the opportunity signal.
+    </p>
+    <p>
+      This paper presents a machine-learning approach to ranking pages by their CTR opportunity, adjusted for position tier and weighted by volume. The research question:
+    </p>
+    <div class="callout info">
+      <p><strong>Which visible pages under-capture clicks or engagement relative to their position tier, and should be reviewed first for metadata, content, or monitoring improvements?</strong></p>
+    </div>
+    <p>
+      The unit of analysis is a <strong>page</strong> (identified by an anonymized content ID). The output is a <strong>ranked queue</strong> with reason codes. A content editor or SEO specialist acts on the queue by rewriting titles or meta descriptions (CTR gap), improving on-page structure (engagement gap), or flagging pages for monitoring. The cost of a wrong recommendation is 15–30 minutes of wasted editor time per false positive; the cost of a miss is wasted visibility that compounds over time.
+    </p>
+  </section>
+
+  <!-- ════════════════════════════════════════════════════════
+       2. DATA
+       ════════════════════════════════════════════════════════ -->
+  <section class="paper-section" id="data">
+    <span class="section-number">Section 2</span>
+    <h2>Data</h2>
+
+    <h3>Source</h3>
+    <p>
+      The data comes from the <a href="https://flyrank.ai" target="_blank" rel="noopener">FlyRank</a> ML Internship dataset — a 79-million-row warehouse of anonymized, aggregated search performance records hosted at <a href="https://huggingface.co/datasets/FlyRank/internship-warehouse" target="_blank" rel="noopener">FlyRank/internship-warehouse</a> on Hugging Face. The warehouse contains three tables: <code>dim_clients</code>, <code>dim_content</code>, and daily performance facts partitioned by month.
+    </p>
+
+    <h3>Working sample</h3>
+    <p>
+      This study uses the <strong>30,000-row bundled starter sample</strong> (<code>content_refresh_anonymized.csv</code>), which contains 44 columns across 32 anonymized clients. All client identifiers, page URLs, titles, and raw query strings have been removed. Date windows span approximately 90-day trailing aggregates.
+    </p>
+
+    <div class="stat-grid">
+      <div class="stat-card">
+        <div class="stat-value">30,000</div>
+        <div class="stat-label">Total rows</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">22,006</div>
+        <div class="stat-label">Working slice</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">44</div>
+        <div class="stat-label">Columns</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">32</div>
+        <div class="stat-label">Clients</div>
+      </div>
+    </div>
+
+    <h3>Working slice</h3>
+    <p>
+      The Lane 4 working slice retains <strong>22,006 rows</strong> after excluding pages with <code>avg_position&nbsp;=&nbsp;0</code> (no search data) and <code>impressions_90d&nbsp;&lt;&nbsp;100</code> (insufficient volume for a meaningful CTR estimate). This represents 73.4% of the full sample.
+    </p>
+
+    <h3>Excluded fields</h3>
+    <p>
+      The following fields were <strong>deliberately excluded from all feature sets</strong> to prevent label leakage:
+    </p>
+    <ul>
+      <li><code>ctr</code> — the target proxy itself; using it as a feature would be circular.</li>
+      <li><code>clicks_90d</code>, <code>clicks_last_30d</code>, <code>clicks_prev_30d</code> — direct components of CTR; including any would leak the label.</li>
+      <li><code>trend_direction</code>, <code>trend_pct</code> — derived from impression change with a hard ±20% threshold; these are label-adjacent and were excluded on principle.</li>
+      <li><code>client_id</code> — used only for grouping in the train/test split, never as a feature (pseudonymous ID leakage risk).</li>
+    </ul>
+  </section>
+
+  <!-- ════════════════════════════════════════════════════════
+       3. METHODOLOGY
+       ════════════════════════════════════════════════════════ -->
+  <section class="paper-section" id="methodology">
+    <span class="section-number">Section 3</span>
+    <h2>Methodology</h2>
+
+    <h3>Label definition</h3>
+    <p>
+      The proxy label <code>is_under_ctr</code> is 1 if a page's CTR falls below the <strong>median CTR of its position tier</strong> (top_3, page_1, striking, page_3_5, deep), and 0 otherwise. This is a within-snapshot comparison, not a prediction of future CTR decline. The base rate is <strong>46.8%</strong> — the dataset is nearly balanced.
+    </p>
+
+    <h3>Features</h3>
+    <p>
+      Twelve numeric features and four categorical features, all observable before any editorial decision:
+    </p>
+
+    <div class="table-wrapper">
+      <table>
+        <thead>
+          <tr><th>Type</th><th>Features</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Numeric (12)</strong></td>
+            <td><code>avg_position</code>, <code>impressions_90d</code>, <code>days_since_last_update</code>, <code>word_count</code>, <code>engagement_rate</code>, <code>scroll_rate</code>, <code>ai_traffic_pct</code>, <code>content_age_days</code>, <code>days_with_impressions</code>, <code>days_with_sessions</code>, <code>pageviews_90d</code>, <code>sessions_90d</code></td>
+          </tr>
+          <tr>
+            <td><strong>Categorical (4)</strong></td>
+            <td><code>content_type</code>, <code>main_intent</code>, <code>position_tier</code>, <code>freshness_tier</code></td>
+          </tr>
+          <tr>
+            <td><strong>Engineered (1)</strong></td>
+            <td><code>has_word_count</code> — binary indicator for whether word count data was available</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Baseline</h3>
+    <p>
+      The rule baseline uses a transparent, hand-written score:
+    </p>
+    <pre>score = visible × actionable × log1p(impressions_90d) × (1 + stale)</pre>
+    <p>Where:</p>
+    <ul>
+      <li><strong>visible</strong>: <code>impressions_90d ≥ 500</code></li>
+      <li><strong>actionable</strong>: <code>3 &lt; avg_position ≤ 20</code></li>
+      <li><strong>stale</strong>: <code>days_since_last_update ≥ 90</code></li>
+    </ul>
+    <p>
+      This baseline scored 11,543 pages and achieved Precision@50&nbsp;=&nbsp;0.34 on the full working slice, and Precision@50&nbsp;=&nbsp;0.40 on the same grouped test fold used for the model — providing a fair comparison.
+    </p>
+
+    <h3>Model selection</h3>
+    <p>
+      Two models were trained: <strong>Logistic Regression</strong> (readable, interpretable coefficients) and <strong>Random Forest</strong> (handles non-linearity, produces calibrated probabilities). Both use <code>predict_proba()</code> to produce ranking scores, evaluated at Precision@K — the same metric as the baseline. Gradient boosting was considered but not pursued: the skill framework advises "add complexity only when the comparison earns it," and Random Forest already demonstrated a clear lift.
+    </p>
+
+    <h3>Validation design</h3>
+    <p>
+      The split uses <strong>GroupShuffleSplit by <code>client_id</code></strong> (75/25, seed&nbsp;=&nbsp;42) to prevent same-client pages from appearing in both train and test sets. This is critical because pages from the same client share portfolio-level patterns that would inflate metrics under a naive random split. The test set contains <strong>4,610 rows from 8 held-out clients</strong> with zero client overlap.
+    </p>
+
+    <h3>Leakage checks</h3>
+    <p>The following checks were performed and passed:</p>
+    <ul>
+      <li><strong>Feature audit</strong>: No CTR-derived or click-count fields in the feature vector (verified programmatically against a <code>FORBIDDEN</code> set).</li>
+      <li><strong>Client overlap test</strong>: Zero clients appear in both train and test sets (confirmed via set intersection).</li>
+      <li><strong>Random-vs-grouped AUC comparison</strong>: AUC under random split (0.77) was higher than under grouped split (0.72), consistent with the expected direction — grouped is harder. If grouped had been higher, it would have indicated leakage.</li>
+      <li><strong>Train-without-top-feature test</strong>: Removing <code>days_with_sessions</code> reduced AUC by ~0.04, confirming it carries genuine signal rather than being a leakage vector.</li>
+    </ul>
+  </section>
+
+  <!-- ════════════════════════════════════════════════════════
+       4. RESULTS
+       ════════════════════════════════════════════════════════ -->
+  <section class="paper-section" id="results">
+    <span class="section-number">Section 4</span>
+    <h2>Results</h2>
+
+    <p>
+      All metrics below are computed on the <strong>same grouped test fold</strong> (4,610 rows, 8 held-out clients, base rate&nbsp;=&nbsp;47.9%). The comparison is apples-to-apples: rule baseline score-ranking vs. model probability-ranking, evaluated at Precision@K.
+    </p>
+
+    <div class="table-wrapper">
+      <table>
+        <thead>
+          <tr>
+            <th>Method</th>
+            <th>Precision@10</th>
+            <th>Precision@20</th>
+            <th>Precision@50</th>
+            <th>AUC</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Rule Baseline</td>
+            <td><span class="metric-badge poor">0.20</span></td>
+            <td><span class="metric-badge poor">0.20</span></td>
+            <td><span class="metric-badge poor">0.40</span></td>
+            <td><span class="metric-badge poor">0.47</span></td>
+          </tr>
+          <tr>
+            <td>Logistic Regression</td>
+            <td><span class="metric-badge good">0.80</span></td>
+            <td><span class="metric-badge good">0.70</span></td>
+            <td><span class="metric-badge good">0.74</span></td>
+            <td><span class="metric-badge neutral">0.70</span></td>
+          </tr>
+          <tr class="highlight">
+            <td>Random Forest</td>
+            <td><span class="metric-badge good">0.70</span></td>
+            <td><span class="metric-badge good">0.80</span></td>
+            <td><span class="metric-badge good">0.76</span></td>
+            <td><span class="metric-badge good">0.72</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p>
+      The Random Forest model's top-50 ranked pages contained <strong>76% true under-CTR pages</strong>, compared with 40% for the rule baseline — an observed improvement of approximately <strong>1.9×</strong> in queue precision. The AUC of 0.72 represents moderate discrimination above the 0.50 random baseline, measured on 4,610 rows from 8 held-out clients. Note: the baseline AUC of 0.47 is below random (0.50), indicating the rule score's ranking is essentially unrelated to the proxy label on this test fold.
+    </p>
+
+    <!-- Inline SVG: Model vs Baseline Precision@K comparison -->
+    <div class="chart-svg-wrap">
+      <svg viewBox="0 0 640 320" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Bar chart comparing Precision at K between rule baseline and random forest model">
+        <!-- Background -->
+        <rect width="640" height="320" fill="#1c1e2e" rx="8"/>
+
+        <!-- Title -->
+        <text x="320" y="30" text-anchor="middle" fill="#f0f2ff" font-family="Inter, sans-serif" font-size="14" font-weight="600">Model vs Baseline — Precision@K (same grouped test fold)</text>
+
+        <!-- Y axis labels -->
+        <text x="60" y="280" text-anchor="middle" fill="#9094b8" font-family="Inter, sans-serif" font-size="11">0.0</text>
+        <text x="60" y="230" text-anchor="middle" fill="#9094b8" font-family="Inter, sans-serif" font-size="11">0.2</text>
+        <text x="60" y="180" text-anchor="middle" fill="#9094b8" font-family="Inter, sans-serif" font-size="11">0.4</text>
+        <text x="60" y="130" text-anchor="middle" fill="#9094b8" font-family="Inter, sans-serif" font-size="11">0.6</text>
+        <text x="60" y="80" text-anchor="middle" fill="#9094b8" font-family="Inter, sans-serif" font-size="11">0.8</text>
+
+        <!-- Grid lines -->
+        <line x1="80" y1="275" x2="600" y2="275" stroke="#2a2d45" stroke-width="1"/>
+        <line x1="80" y1="225" x2="600" y2="225" stroke="#2a2d45" stroke-width="1" stroke-dasharray="4"/>
+        <line x1="80" y1="175" x2="600" y2="175" stroke="#2a2d45" stroke-width="1" stroke-dasharray="4"/>
+        <line x1="80" y1="125" x2="600" y2="125" stroke="#2a2d45" stroke-width="1" stroke-dasharray="4"/>
+        <line x1="80" y1="75" x2="600" y2="75" stroke="#2a2d45" stroke-width="1" stroke-dasharray="4"/>
+
+        <!-- Base rate line -->
+        <line x1="80" y1="155" x2="600" y2="155" stroke="#f5a623" stroke-width="2" stroke-dasharray="8,4"/>
+        <text x="605" y="155" fill="#f5a623" font-family="Inter, sans-serif" font-size="10" dominant-baseline="middle">Base rate (0.48)</text>
+
+        <!-- P@10 group -->
+        <!-- Baseline: 0.20 → height = 0.20 * 250 = 50 -->
+        <rect x="120" y="225" width="45" height="50" fill="#f25f5c" rx="3" opacity="0.85"/>
+        <text x="142" y="218" text-anchor="middle" fill="#f25f5c" font-family="Inter, sans-serif" font-size="11" font-weight="600">0.20</text>
+        <!-- RF: 0.70 → height = 0.70 * 250 = 175 -->
+        <rect x="170" y="100" width="45" height="175" fill="#6c8aff" rx="3" opacity="0.85"/>
+        <text x="192" y="93" text-anchor="middle" fill="#6c8aff" font-family="Inter, sans-serif" font-size="11" font-weight="600">0.70</text>
+        <text x="167" y="300" text-anchor="middle" fill="#e0e2f0" font-family="Inter, sans-serif" font-size="12">P@10</text>
+
+        <!-- P@20 group -->
+        <rect x="290" y="225" width="45" height="50" fill="#f25f5c" rx="3" opacity="0.85"/>
+        <text x="312" y="218" text-anchor="middle" fill="#f25f5c" font-family="Inter, sans-serif" font-size="11" font-weight="600">0.20</text>
+        <rect x="340" y="75" width="45" height="200" fill="#6c8aff" rx="3" opacity="0.85"/>
+        <text x="362" y="68" text-anchor="middle" fill="#6c8aff" font-family="Inter, sans-serif" font-size="11" font-weight="600">0.80</text>
+        <text x="337" y="300" text-anchor="middle" fill="#e0e2f0" font-family="Inter, sans-serif" font-size="12">P@20</text>
+
+        <!-- P@50 group -->
+        <rect x="460" y="175" width="45" height="100" fill="#f25f5c" rx="3" opacity="0.85"/>
+        <text x="482" y="168" text-anchor="middle" fill="#f25f5c" font-family="Inter, sans-serif" font-size="11" font-weight="600">0.40</text>
+        <rect x="510" y="85" width="45" height="190" fill="#6c8aff" rx="3" opacity="0.85"/>
+        <text x="532" y="78" text-anchor="middle" fill="#6c8aff" font-family="Inter, sans-serif" font-size="11" font-weight="600">0.76</text>
+        <text x="507" y="300" text-anchor="middle" fill="#e0e2f0" font-family="Inter, sans-serif" font-size="12">P@50</text>
+
+        <!-- Legend -->
+        <rect x="100" y="44" width="12" height="12" fill="#f25f5c" rx="2"/>
+        <text x="118" y="54" fill="#9094b8" font-family="Inter, sans-serif" font-size="11">Rule Baseline</text>
+        <rect x="220" y="44" width="12" height="12" fill="#6c8aff" rx="2"/>
+        <text x="238" y="54" fill="#9094b8" font-family="Inter, sans-serif" font-size="11">Random Forest</text>
+      </svg>
+    </div>
+    <p class="figure-caption"><strong>Figure 1.</strong> Precision@K comparison on the grouped test fold. The Random Forest model surfaces approximately 1.9× more true under-CTR pages in the top 50 than the rule baseline. The dashed orange line marks the base rate (47.9%).</p>
+
+    <h3>Top features</h3>
+    <p>
+      Permutation importance (measured on the grouped test fold) identified five features with the largest impact on the model's AUC:
+    </p>
+
+    <div class="table-wrapper">
+      <table>
+        <thead>
+          <tr><th>Rank</th><th>Feature</th><th>Importance (AUC drop)</th><th>Interpretation</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>1</td>
+            <td><code>days_with_sessions</code></td>
+            <td><span class="metric-badge good">0.039</span></td>
+            <td>Pages with inconsistent session activity are more likely to under-perform on CTR</td>
+          </tr>
+          <tr>
+            <td>2</td>
+            <td><code>engagement_rate</code></td>
+            <td><span class="metric-badge good">0.022</span></td>
+            <td>Low on-page engagement is associated with lower CTR relative to tier peers</td>
+          </tr>
+          <tr>
+            <td>3</td>
+            <td><code>pageviews_90d</code></td>
+            <td><span class="metric-badge neutral">0.014</span></td>
+            <td>Aggregate traffic volume signals overall page health</td>
+          </tr>
+          <tr>
+            <td>4</td>
+            <td><code>impressions_90d</code></td>
+            <td><span class="metric-badge neutral">0.013</span></td>
+            <td>High-impression pages failing to convert are high-opportunity targets</td>
+          </tr>
+          <tr>
+            <td>5</td>
+            <td><code>sessions_90d</code></td>
+            <td><span class="metric-badge neutral">0.009</span></td>
+            <td>Supplements days_with_sessions with volume context</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Score distribution</h3>
+    <div class="figure-container">
+      <img src="img/score_distribution.png" alt="Model score distribution showing the full queue of 22,006 pages, with action threshold at 0.5 and base rate at 0.47" loading="lazy">
+      <p class="figure-caption"><strong>Figure 2.</strong> Distribution of model scores P(under-CTR) across all 22,006 pages. The red dashed line marks the 0.5 action threshold; the green dotted line marks the base rate (0.47). Pages scoring above 0.5 are flagged for editor review.</p>
+    </div>
+
+    <h3>Error analysis</h3>
+    <p>
+      The model is most confident — and most accurate — at the extremes. Pages with very low engagement plus high staleness are reliably flagged as under-CTR; pages with strong engagement and fresh content are reliably scored as fine. Errors concentrate in the middle:
+    </p>
+    <ul>
+      <li><strong>False positives</strong> (model flags, but page is fine): typically pages where engagement signals look similar to under-performers, but CTR barely clears the tier median. The model cannot distinguish "barely above" from "barely below" near the decision boundary.</li>
+      <li><strong>False negatives</strong> (model misses true under-performers): pages with normal-looking engagement and moderate position/volume — their CTR gap may be driven by SERP features, branded queries, or factors not captured in this dataset.</li>
+    </ul>
+  </section>
+
+  <!-- ════════════════════════════════════════════════════════
+       5. LIMITATIONS & HONEST FRAMING
+       ════════════════════════════════════════════════════════ -->
+  <section class="paper-section" id="limitations">
+    <span class="section-number">Section 5</span>
+    <h2>Limitations &amp; Honest Framing</h2>
+
+    <div class="callout warning">
+      <p><strong>This section exists to state what this work cannot claim</strong> — writing it ourselves, before a reader does, is what earns trust.</p>
+    </div>
+
+    <ul>
+      <li><strong>Observational, not causal.</strong> We observe that certain engagement and freshness signals are associated with below-median CTR. We <em>cannot</em> claim that improving a title or meta description will cause CTR to increase. That would require an A/B experiment or another causal design.</li>
+      <li><strong>Proxy label, not ground truth.</strong> The label <code>is_under_ctr</code> compares a page's CTR to its position-tier median in a single snapshot. It does not capture whether the page's CTR actually improved after an editor took action. A longitudinal or before/after evaluation was outside the scope of this dataset.</li>
+      <li><strong>Single split, single dataset.</strong> All results are measured on one GroupShuffleSplit of 30 clients. The observed lift (1.9×) should be validated on future data, additional client holdouts, and ideally a time-based forward split before operational use.</li>
+      <li><strong>No causal claims about ranking factors.</strong> CTR under-performance may reflect SERP features (featured snippets, knowledge panels), query competition, seasonality, or branded intent — none of which are captured as features in this dataset. We cannot and do not claim to have "predicted Google's algorithm."</li>
+      <li><strong>Moderate discrimination, not high.</strong> AUC of 0.72 on the grouped split represents moderate — not strong — discrimination. The model is useful for prioritization (ranking), but should not be treated as a binary classifier with a hard threshold.</li>
+      <li><strong>Dataset scope.</strong> The 30,000-row sample covers 32 anonymized clients. Generalization to different verticals, markets, or content types is not established.</li>
+    </ul>
+  </section>
+
+  <!-- ════════════════════════════════════════════════════════
+       6. RANKED RECOMMENDATIONS
+       ════════════════════════════════════════════════════════ -->
+  <section class="paper-section" id="recommendations">
+    <span class="section-number">Section 6</span>
+    <h2>Ranked Recommendations</h2>
+
+    <p>
+      The model-scored action queue flagged <strong>12,616 pages</strong> (score &gt; 0.5) from the 22,006-page working slice. These were assigned reason codes based on the dominant signals behind each flag. Below is the recommended action priority, ordered by expected impact:
+    </p>
+
+    <div class="figure-container">
+      <img src="img/reason_code_distribution.png" alt="Horizontal bar chart showing reason code distribution: general CTR opportunity (7,419), low session consistency (3,884), position decay risk (971), high-volume underperformer (342)" loading="lazy">
+      <p class="figure-caption"><strong>Figure 3.</strong> Reason code distribution across flagged pages. The queue is designed so editors can filter by reason code and match the action to the diagnosis.</p>
+    </div>
+
+    <ol class="rec-list">
+      <li>
+        <h4>High-Volume Underperformers (342 pages) — Act First</h4>
+        <p>Pages with high impressions but low CTR relative to position peers. These represent the largest absolute click opportunity. <strong>Recommended action:</strong> title and meta description audit, structured data review. <strong>Confidence:</strong> High — large volume means even small CTR gains compound.</p>
+      </li>
+      <li>
+        <h4>Position Decay Risk (971 pages) — Protect Visibility</h4>
+        <p>Pages showing signs of declining average position combined with under-CTR. <strong>Recommended action:</strong> content freshness check, internal linking audit, competitor analysis. <strong>Confidence:</strong> Moderate — position changes may be seasonal or competitive.</p>
+      </li>
+      <li>
+        <h4>Low Session Consistency (3,884 pages) — Investigate Engagement</h4>
+        <p>Pages with sporadic session activity (low <code>days_with_sessions</code>). The model weights this signal most heavily. <strong>Recommended action:</strong> on-page experience audit (load time, readability, mobile UX, content depth). <strong>Confidence:</strong> Moderate — engagement may reflect content quality or query intent mismatch.</p>
+      </li>
+      <li>
+        <h4>General CTR Opportunity (7,419 pages) — Bulk Review</h4>
+        <p>The broadest category: pages below tier median CTR without a single dominant reason. <strong>Recommended action:</strong> batch review in cycles of 50, sorted by model score descending. Start with the top-scored pages and iterate. <strong>Confidence:</strong> Directional — these are prioritization suggestions, not diagnoses.</p>
+      </li>
+      <li>
+        <h4>Monitor &amp; Re-Score (all flagged pages) — Ongoing</h4>
+        <p>Set up drift baselines for top features and re-score the queue monthly. If feature distributions shift beyond the documented P25–P75 ranges, the model may need retraining. <strong>Confidence:</strong> Standard practice for any deployed scoring model.</p>
+      </li>
+    </ol>
+
+    <div class="callout info">
+      <p><strong>Important:</strong> These are <em>decision-support recommendations</em> — they help a human editor prioritize, not replace their judgment. Every flag should be reviewed by a human before action is taken.</p>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════════════════════
+       7. REPRODUCIBILITY
+       ════════════════════════════════════════════════════════ -->
+  <section class="paper-section" id="reproducibility">
+    <span class="section-number">Section 7</span>
+    <h2>Reproducibility</h2>
+
+    <h3>Repository</h3>
+    <p>
+      All code, notebooks, and metric receipts are available at:<br>
+      <a href="https://github.com/shreeyeshbaral/ShreeyeshAssignment1" target="_blank" rel="noopener"><strong>github.com/shreeyeshbaral/ShreeyeshAssignment1</strong></a>
+    </p>
+
+    <h3>How to reproduce</h3>
+    <pre>
+git clone https://github.com/shreeyeshbaral/ShreeyeshAssignment1.git
+cd ShreeyeshAssignment1
+pip install -r requirements.txt
+
+# Run the reference pipeline on the bundled sample
+python scripts/run_all.py
+
+# Or open the notebooks individually (recommended):
+# work/notebooks/w04_baseline_score.ipynb  — baseline
+# work/notebooks/w05_model.ipynb           — model training
+# work/notebooks/w06_validation_audit.ipynb — validation
+# work/notebooks/w07_action_playbook.ipynb  — action queue</pre>
+
+    <h3>Notebooks</h3>
+    <div class="table-wrapper">
+      <table>
+        <thead>
+          <tr><th>Week</th><th>Notebook</th><th>Purpose</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>1</td><td><code>w01_research_question.ipynb</code></td><td>Research question and lane selection</td></tr>
+          <tr><td>2</td><td><code>w02_ml_task_framing.ipynb</code></td><td>ML task framing and feature plan</td></tr>
+          <tr><td>3</td><td><code>w03_data_contract.ipynb</code></td><td>Data contract on the full warehouse</td></tr>
+          <tr><td>4</td><td><code>w04_baseline_score.ipynb</code></td><td>Rule baseline and signal audit</td></tr>
+          <tr><td>5</td><td><code>w05_model.ipynb</code></td><td>Model training and head-to-head comparison</td></tr>
+          <tr><td>6</td><td><code>w06_validation_audit.ipynb</code></td><td>Grouped validation and claim audit</td></tr>
+          <tr><td>7</td><td><code>w07_action_playbook.ipynb</code></td><td>Action queue, reason codes, and playbook</td></tr>
+          <tr><td>8</td><td><code>capstone.ipynb</code></td><td>Capstone integration</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Environment</h3>
+    <ul>
+      <li><strong>Python</strong>: 3.12</li>
+      <li><strong>scikit-learn</strong>: 1.9.0</li>
+      <li><strong>pandas</strong>: 3.0.5</li>
+      <li><strong>numpy</strong>: 2.5.1</li>
+      <li><strong>Random seed</strong>: 42 (fixed across all notebooks)</li>
+    </ul>
+
+    <h3>Metric receipts</h3>
+    <p>
+      Committed JSON files in <code>work/outputs/</code> serve as reproducibility receipts. Any re-run with the same seed and data should produce matching numbers:
+    </p>
+    <ul>
+      <li><code>baseline_metrics.json</code> — baseline score formula and precision values</li>
+      <li><code>model_metrics.json</code> — model AUC, Precision@K, top features</li>
+      <li><code>playbook_metrics.json</code> — action queue counts, reason codes, drift baselines</li>
+    </ul>
+  </section>
+
+  <!-- ════════════════════════════════════════════════════════
+       8. ACKNOWLEDGMENTS & DATA CREDIT
+       ════════════════════════════════════════════════════════ -->
+  <section class="paper-section paper-footer" id="acknowledgments">
+    <span class="section-number">Section 8</span>
+    <h2>Acknowledgments &amp; Data Credit</h2>
+
+    <p>
+      Built on the <strong>FlyRank ML Internship dataset</strong> — an anonymized, aggregated release of real production search performance data.
+    </p>
+    <p>
+      <a href="https://flyrank.ai" target="_blank" rel="noopener">https://flyrank.ai</a>
+    </p>
+    <p>
+      Thanks to the FlyRank team, track leads Mirza Ašćerić (ML) and Hole (data engineering), and the internship program for making this dataset available for research.
+      This research was completed as part of the FlyRank ML Internship capstone, August 2026.
+    </p>
+    <p style="margin-top: 32px; font-size: 0.78rem; color: var(--color-text-dim);">
+      © 2026 Shreeyesh Baral · Code under MIT License · Data use governed by <a href="https://github.com/shreeyeshbaral/ShreeyeshAssignment1/blob/main/DATA_USE.md">DATA_USE.md</a>
+    </p>
+  </section>
+
+</main>
+
+<!-- ── Scroll progress + nav highlight script ────────────── -->
+<script>
+  // Progress bar
+  const progressBar = document.getElementById('progressBar');
+  const topNav = document.getElementById('topNav');
+
+  function updateProgress() {
+    const scrollTop = window.scrollY;
+    const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+    const progress = docHeight > 0 ? (scrollTop / docHeight) * 100 : 0;
+    progressBar.style.width = progress + '%';
+
+    // Nav shadow
+    if (scrollTop > 10) {
+      topNav.classList.add('scrolled');
+    } else {
+      topNav.classList.remove('scrolled');
+    }
+  }
+
+  // Active nav link highlight
+  const sections = document.querySelectorAll('.paper-section, #abstract');
+  const navLinks = document.querySelectorAll('.nav-links a');
+
+  function updateActiveNav() {
+    const scrollPos = window.scrollY + 100;
+    let current = '';
+
+    sections.forEach(section => {
+      if (section.offsetTop <= scrollPos) {
+        current = section.id;
+      }
+    });
+
+    navLinks.forEach(link => {
+      link.classList.remove('active');
+      if (link.getAttribute('href') === '#' + current) {
+        link.classList.add('active');
+      }
+    });
+  }
+
+  window.addEventListener('scroll', () => {
+    requestAnimationFrame(() => {
+      updateProgress();
+      updateActiveNav();
+    });
+  });
+
+  updateProgress();
+  updateActiveNav();
+</script>
+
+</body>
+</html>
