@@ -6,6 +6,13 @@
   <title>Which Pages Under-Capture Clicks? A Position-Adjusted CTR Opportunity Model on 79 Million Rows of Search Data</title>
   <meta name="description" content="A research paper building a machine-learning model to rank web pages by click-through-rate opportunity, evaluated against a transparent rule baseline on real anonymized search data from the FlyRank ML Internship dataset.">
   <meta name="author" content="Shreeyesh Baral">
+  <meta property="og:title" content="Position-Adjusted CTR Opportunity Model — FlyRank Research">
+  <meta property="og:description" content="Using 30,000 pages from a 79M-row search dataset: Random Forest achieves 1.9× queue precision lift over hand-written rules for CTR opportunity scoring.">
+  <meta property="og:type" content="article">
+  <meta property="og:url" content="https://shreeyeshbaral.github.io/ShreeyeshAssignment1/paper/">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="robots" content="index, follow">
+  <link rel="canonical" href="https://shreeyeshbaral.github.io/ShreeyeshAssignment1/paper/">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -35,9 +42,9 @@
        HERO / TITLE
        ════════════════════════════════════════════════════════ -->
   <header class="paper-hero">
-    <h1>Which Pages Under-Capture Clicks?<br>A Position-Adjusted CTR Opportunity Model</h1>
+    <h1>Which Pages Under-Capture Clicks?<br>A Position-Adjusted CTR Opportunity&nbsp;Model</h1>
     <p class="subtitle">
-      Ranking 22,000 pages by click-through-rate gap using engagement signals, validated on held-out clients from 79&nbsp;million rows of real production search data.
+      Ranking 22,000 pages by click-through-rate gap using engagement signals, validated on held-out clients from 79&nbsp;million rows of real production search&nbsp;data.
     </p>
     <div class="paper-meta">
       <span>
@@ -105,7 +112,7 @@
 
     <h3>Source</h3>
     <p>
-      The data comes from the <a href="https://flyrank.ai" target="_blank" rel="noopener">FlyRank</a> ML Internship dataset — a 79-million-row warehouse of anonymized, aggregated search performance records hosted at <a href="https://huggingface.co/datasets/FlyRank/internship-warehouse" target="_blank" rel="noopener">FlyRank/internship-warehouse</a> on Hugging Face. The warehouse contains three tables: <code>dim_clients</code>, <code>dim_content</code>, and daily performance facts partitioned by month.
+      The data comes from the <a href="https://flyrank.ai" target="_blank" rel="noopener">FlyRank</a> ML Internship dataset — a 79-million-row warehouse of anonymized, aggregated search performance records hosted at <a href="https://huggingface.co/datasets/FlyRank/internship-warehouse" target="_blank" rel="noopener">FlyRank/internship-warehouse</a> on Hugging Face. The warehouse contains four tables: <code>dim_clients</code>, <code>dim_content</code>, <code>fact_content_daily_performance</code> (partitioned by month), and <code>fact_content_query_90d</code>.
     </p>
 
     <h3>Working sample</h3>
@@ -115,26 +122,26 @@
 
     <div class="stat-grid">
       <div class="stat-card">
-        <div class="stat-value">30,000</div>
+        <div class="stat-value" data-count="30000">30,000</div>
         <div class="stat-label">Total rows</div>
       </div>
       <div class="stat-card">
-        <div class="stat-value">22,006</div>
+        <div class="stat-value" data-count="22006">22,006</div>
         <div class="stat-label">Working slice</div>
       </div>
       <div class="stat-card">
-        <div class="stat-value">44</div>
+        <div class="stat-value" data-count="44">44</div>
         <div class="stat-label">Columns</div>
       </div>
       <div class="stat-card">
-        <div class="stat-value">32</div>
+        <div class="stat-value" data-count="32">32</div>
         <div class="stat-label">Clients</div>
       </div>
     </div>
 
     <h3>Working slice</h3>
     <p>
-      The Lane 4 working slice retains <strong>22,006 rows</strong> after excluding pages with <code>avg_position&nbsp;=&nbsp;0</code> (no search data) and <code>impressions_90d&nbsp;&lt;&nbsp;100</code> (insufficient volume for a meaningful CTR estimate). This represents 73.4% of the full sample.
+      The Lane 4 working slice retains <strong>22,006 rows</strong> after excluding pages with <code>avg_position&nbsp;=&nbsp;0</code> (no search data, 1,205 rows) and <code>impressions_90d&nbsp;&lt;&nbsp;100</code> (insufficient volume for a meaningful CTR estimate). This represents 73.4% of the full sample.
     </p>
 
     <h3>Excluded fields</h3>
@@ -163,7 +170,7 @@
 
     <h3>Features</h3>
     <p>
-      Twelve numeric features and four categorical features, all observable before any editorial decision:
+      Twelve numeric features, four categorical features, and one engineered indicator — all observable before any editorial decision:
     </p>
 
     <div class="table-wrapper">
@@ -188,6 +195,13 @@
       </table>
     </div>
 
+    <h3>Assumptions</h3>
+    <ul>
+      <li>Position-tier median CTR is a meaningful benchmark for "expected" click performance within a position band.</li>
+      <li>Engagement metrics (sessions, scroll rate, engagement rate) are observable independently of the CTR label and carry genuine signal about page quality.</li>
+      <li>Client portfolios share enough structural similarity that a model trained on 24 clients can generalize to 8 held-out clients.</li>
+    </ul>
+
     <h3>Baseline</h3>
     <p>
       The rule baseline uses a transparent, hand-written score:
@@ -205,7 +219,7 @@
 
     <h3>Model selection</h3>
     <p>
-      Two models were trained: <strong>Logistic Regression</strong> (readable, interpretable coefficients) and <strong>Random Forest</strong> (handles non-linearity, produces calibrated probabilities). Both use <code>predict_proba()</code> to produce ranking scores, evaluated at Precision@K — the same metric as the baseline. Gradient boosting was considered but not pursued: the skill framework advises "add complexity only when the comparison earns it," and Random Forest already demonstrated a clear lift.
+      Two models were trained: <strong>Logistic Regression</strong> (readable, interpretable coefficients) and <strong>Random Forest</strong> (<code>n_estimators=200</code>, <code>max_depth=5</code>, <code>class_weight='balanced'</code>, <code>random_state=42</code>). Both use <code>predict_proba()</code> to produce ranking scores, evaluated at Precision@K — the same metric as the baseline. Gradient boosting was considered but not pursued: the skill framework advises "add complexity only when the comparison earns it," and Random Forest already demonstrated a clear lift.
     </p>
 
     <h3>Validation design</h3>
@@ -233,6 +247,14 @@
     <p>
       All metrics below are computed on the <strong>same grouped test fold</strong> (4,610 rows, 8 held-out clients, base rate&nbsp;=&nbsp;47.9%). The comparison is apples-to-apples: rule baseline score-ranking vs. model probability-ranking, evaluated at Precision@K.
     </p>
+
+    <!-- Key result highlight -->
+    <div class="insight-box">
+      <div class="insight-metric">1.9×</div>
+      <div class="insight-text">
+        <strong>Queue precision lift.</strong> The Random Forest's top-50 ranked pages contained 76% true under-CTR pages, compared with 40% for the rule baseline — an observed 1.9× improvement.
+      </div>
+    </div>
 
     <div class="table-wrapper">
       <table>
@@ -272,72 +294,178 @@
     </div>
 
     <p>
-      The Random Forest model's top-50 ranked pages contained <strong>76% true under-CTR pages</strong>, compared with 40% for the rule baseline — an observed improvement of approximately <strong>1.9×</strong> in queue precision. The AUC of 0.72 represents moderate discrimination above the 0.50 random baseline, measured on 4,610 rows from 8 held-out clients. Note: the baseline AUC of 0.47 is below random (0.50), indicating the rule score's ranking is essentially unrelated to the proxy label on this test fold.
+      The baseline AUC of 0.47 is below random (0.50), indicating the rule score's ranking is essentially unrelated to the proxy label on this test fold. The Random Forest's AUC of 0.72 represents moderate discrimination — meaningful for prioritization, though not high enough for automated binary decisions.
     </p>
 
-    <!-- Inline SVG: Model vs Baseline Precision@K comparison -->
-    <div class="chart-svg-wrap">
-      <svg viewBox="0 0 640 320" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Bar chart comparing Precision at K between rule baseline and random forest model">
-        <!-- Background -->
-        <rect width="640" height="320" fill="#1c1e2e" rx="8"/>
+    <!-- ── Chart 1: Precision@K grouped bar chart ──────────── -->
+    <div class="chart-container">
+      <div class="chart-wrap">
+        <svg viewBox="0 0 600 340" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Bar chart comparing Precision at K between rule baseline, logistic regression, and random forest">
+          <!-- Title -->
+          <text x="300" y="28" text-anchor="middle" fill="#f4f6ff" font-family="Inter, sans-serif" font-size="13" font-weight="700">Precision@K — Model vs. Baseline (Grouped Test Fold)</text>
 
-        <!-- Title -->
-        <text x="320" y="30" text-anchor="middle" fill="#f0f2ff" font-family="Inter, sans-serif" font-size="14" font-weight="600">Model vs Baseline — Precision@K (same grouped test fold)</text>
+          <!-- Y-axis labels -->
+          <text x="52" y="295" text-anchor="middle" fill="#7a80a8" font-family="Inter, sans-serif" font-size="10">0.0</text>
+          <text x="52" y="243" text-anchor="middle" fill="#7a80a8" font-family="Inter, sans-serif" font-size="10">0.2</text>
+          <text x="52" y="191" text-anchor="middle" fill="#7a80a8" font-family="Inter, sans-serif" font-size="10">0.4</text>
+          <text x="52" y="139" text-anchor="middle" fill="#7a80a8" font-family="Inter, sans-serif" font-size="10">0.6</text>
+          <text x="52" y="87" text-anchor="middle" fill="#7a80a8" font-family="Inter, sans-serif" font-size="10">0.8</text>
 
-        <!-- Y axis labels -->
-        <text x="60" y="280" text-anchor="middle" fill="#9094b8" font-family="Inter, sans-serif" font-size="11">0.0</text>
-        <text x="60" y="230" text-anchor="middle" fill="#9094b8" font-family="Inter, sans-serif" font-size="11">0.2</text>
-        <text x="60" y="180" text-anchor="middle" fill="#9094b8" font-family="Inter, sans-serif" font-size="11">0.4</text>
-        <text x="60" y="130" text-anchor="middle" fill="#9094b8" font-family="Inter, sans-serif" font-size="11">0.6</text>
-        <text x="60" y="80" text-anchor="middle" fill="#9094b8" font-family="Inter, sans-serif" font-size="11">0.8</text>
+          <!-- Grid lines -->
+          <line x1="70" y1="290" x2="570" y2="290" stroke="#232740" stroke-width="1"/>
+          <line x1="70" y1="238" x2="570" y2="238" stroke="#232740" stroke-width="0.5" stroke-dasharray="4,3"/>
+          <line x1="70" y1="186" x2="570" y2="186" stroke="#232740" stroke-width="0.5" stroke-dasharray="4,3"/>
+          <line x1="70" y1="134" x2="570" y2="134" stroke="#232740" stroke-width="0.5" stroke-dasharray="4,3"/>
+          <line x1="70" y1="82" x2="570" y2="82" stroke="#232740" stroke-width="0.5" stroke-dasharray="4,3"/>
 
-        <!-- Grid lines -->
-        <line x1="80" y1="275" x2="600" y2="275" stroke="#2a2d45" stroke-width="1"/>
-        <line x1="80" y1="225" x2="600" y2="225" stroke="#2a2d45" stroke-width="1" stroke-dasharray="4"/>
-        <line x1="80" y1="175" x2="600" y2="175" stroke="#2a2d45" stroke-width="1" stroke-dasharray="4"/>
-        <line x1="80" y1="125" x2="600" y2="125" stroke="#2a2d45" stroke-width="1" stroke-dasharray="4"/>
-        <line x1="80" y1="75" x2="600" y2="75" stroke="#2a2d45" stroke-width="1" stroke-dasharray="4"/>
+          <!-- Base rate line at 0.479 => y = 290 - (0.479 * 260) = 165.5 -->
+          <line x1="70" y1="165" x2="570" y2="165" stroke="#fbbf24" stroke-width="1.5" stroke-dasharray="6,4"/>
+          <text x="574" y="162" fill="#fbbf24" font-family="Inter, sans-serif" font-size="9" dominant-baseline="middle">Base rate</text>
 
-        <!-- Base rate line -->
-        <line x1="80" y1="155" x2="600" y2="155" stroke="#f5a623" stroke-width="2" stroke-dasharray="8,4"/>
-        <text x="605" y="155" fill="#f5a623" font-family="Inter, sans-serif" font-size="10" dominant-baseline="middle">Base rate (0.48)</text>
+          <!-- P@10 group (center at x=155) -->
+          <!-- Baseline: 0.20 => h=52, y=290-52=238 -->
+          <rect x="108" y="238" width="28" height="52" fill="#f87171" rx="4" opacity="0.85">
+            <animate attributeName="height" from="0" to="52" dur="0.6s" fill="freeze"/>
+            <animate attributeName="y" from="290" to="238" dur="0.6s" fill="freeze"/>
+          </rect>
+          <!-- LR: 0.80 => h=208, y=290-208=82 -->
+          <rect x="140" y="82" width="28" height="208" fill="#a78bfa" rx="4" opacity="0.85">
+            <animate attributeName="height" from="0" to="208" dur="0.6s" begin="0.1s" fill="freeze"/>
+            <animate attributeName="y" from="290" to="82" dur="0.6s" begin="0.1s" fill="freeze"/>
+          </rect>
+          <!-- RF: 0.70 => h=182, y=290-182=108 -->
+          <rect x="172" y="108" width="28" height="182" fill="#6c8aff" rx="4" opacity="0.85">
+            <animate attributeName="height" from="0" to="182" dur="0.6s" begin="0.2s" fill="freeze"/>
+            <animate attributeName="y" from="290" to="108" dur="0.6s" begin="0.2s" fill="freeze"/>
+          </rect>
+          <!-- Labels -->
+          <text x="110" y="232" fill="#f87171" font-family="Inter, sans-serif" font-size="10" font-weight="600">0.20</text>
+          <text x="142" y="76" fill="#a78bfa" font-family="Inter, sans-serif" font-size="10" font-weight="600">0.80</text>
+          <text x="174" y="102" fill="#6c8aff" font-family="Inter, sans-serif" font-size="10" font-weight="600">0.70</text>
+          <text x="155" y="314" text-anchor="middle" fill="#b0b5d0" font-family="Inter, sans-serif" font-size="11">P@10</text>
 
-        <!-- P@10 group -->
-        <!-- Baseline: 0.20 → height = 0.20 * 250 = 50 -->
-        <rect x="120" y="225" width="45" height="50" fill="#f25f5c" rx="3" opacity="0.85"/>
-        <text x="142" y="218" text-anchor="middle" fill="#f25f5c" font-family="Inter, sans-serif" font-size="11" font-weight="600">0.20</text>
-        <!-- RF: 0.70 → height = 0.70 * 250 = 175 -->
-        <rect x="170" y="100" width="45" height="175" fill="#6c8aff" rx="3" opacity="0.85"/>
-        <text x="192" y="93" text-anchor="middle" fill="#6c8aff" font-family="Inter, sans-serif" font-size="11" font-weight="600">0.70</text>
-        <text x="167" y="300" text-anchor="middle" fill="#e0e2f0" font-family="Inter, sans-serif" font-size="12">P@10</text>
+          <!-- P@20 group (center at x=320) -->
+          <rect x="273" y="238" width="28" height="52" fill="#f87171" rx="4" opacity="0.85">
+            <animate attributeName="height" from="0" to="52" dur="0.6s" begin="0.15s" fill="freeze"/>
+            <animate attributeName="y" from="290" to="238" dur="0.6s" begin="0.15s" fill="freeze"/>
+          </rect>
+          <!-- LR: 0.70 => h=182, y=108 -->
+          <rect x="305" y="108" width="28" height="182" fill="#a78bfa" rx="4" opacity="0.85">
+            <animate attributeName="height" from="0" to="182" dur="0.6s" begin="0.25s" fill="freeze"/>
+            <animate attributeName="y" from="290" to="108" dur="0.6s" begin="0.25s" fill="freeze"/>
+          </rect>
+          <!-- RF: 0.80 => h=208, y=82 -->
+          <rect x="337" y="82" width="28" height="208" fill="#6c8aff" rx="4" opacity="0.85">
+            <animate attributeName="height" from="0" to="208" dur="0.6s" begin="0.35s" fill="freeze"/>
+            <animate attributeName="y" from="290" to="82" dur="0.6s" begin="0.35s" fill="freeze"/>
+          </rect>
+          <text x="275" y="232" fill="#f87171" font-family="Inter, sans-serif" font-size="10" font-weight="600">0.20</text>
+          <text x="307" y="102" fill="#a78bfa" font-family="Inter, sans-serif" font-size="10" font-weight="600">0.70</text>
+          <text x="339" y="76" fill="#6c8aff" font-family="Inter, sans-serif" font-size="10" font-weight="600">0.80</text>
+          <text x="320" y="314" text-anchor="middle" fill="#b0b5d0" font-family="Inter, sans-serif" font-size="11">P@20</text>
 
-        <!-- P@20 group -->
-        <rect x="290" y="225" width="45" height="50" fill="#f25f5c" rx="3" opacity="0.85"/>
-        <text x="312" y="218" text-anchor="middle" fill="#f25f5c" font-family="Inter, sans-serif" font-size="11" font-weight="600">0.20</text>
-        <rect x="340" y="75" width="45" height="200" fill="#6c8aff" rx="3" opacity="0.85"/>
-        <text x="362" y="68" text-anchor="middle" fill="#6c8aff" font-family="Inter, sans-serif" font-size="11" font-weight="600">0.80</text>
-        <text x="337" y="300" text-anchor="middle" fill="#e0e2f0" font-family="Inter, sans-serif" font-size="12">P@20</text>
+          <!-- P@50 group (center at x=485) -->
+          <rect x="438" y="186" width="28" height="104" fill="#f87171" rx="4" opacity="0.85">
+            <animate attributeName="height" from="0" to="104" dur="0.6s" begin="0.3s" fill="freeze"/>
+            <animate attributeName="y" from="290" to="186" dur="0.6s" begin="0.3s" fill="freeze"/>
+          </rect>
+          <!-- LR: 0.74 => h=192.4, y=97.6 -->
+          <rect x="470" y="98" width="28" height="192" fill="#a78bfa" rx="4" opacity="0.85">
+            <animate attributeName="height" from="0" to="192" dur="0.6s" begin="0.4s" fill="freeze"/>
+            <animate attributeName="y" from="290" to="98" dur="0.6s" begin="0.4s" fill="freeze"/>
+          </rect>
+          <!-- RF: 0.76 => h=197.6, y=92.4 -->
+          <rect x="502" y="92" width="28" height="198" fill="#6c8aff" rx="4" opacity="0.85">
+            <animate attributeName="height" from="0" to="198" dur="0.6s" begin="0.5s" fill="freeze"/>
+            <animate attributeName="y" from="290" to="92" dur="0.6s" begin="0.5s" fill="freeze"/>
+          </rect>
+          <text x="440" y="180" fill="#f87171" font-family="Inter, sans-serif" font-size="10" font-weight="600">0.40</text>
+          <text x="472" y="92" fill="#a78bfa" font-family="Inter, sans-serif" font-size="10" font-weight="600">0.74</text>
+          <text x="504" y="86" fill="#6c8aff" font-family="Inter, sans-serif" font-size="10" font-weight="600">0.76</text>
+          <text x="485" y="314" text-anchor="middle" fill="#b0b5d0" font-family="Inter, sans-serif" font-size="11">P@50</text>
 
-        <!-- P@50 group -->
-        <rect x="460" y="175" width="45" height="100" fill="#f25f5c" rx="3" opacity="0.85"/>
-        <text x="482" y="168" text-anchor="middle" fill="#f25f5c" font-family="Inter, sans-serif" font-size="11" font-weight="600">0.40</text>
-        <rect x="510" y="85" width="45" height="190" fill="#6c8aff" rx="3" opacity="0.85"/>
-        <text x="532" y="78" text-anchor="middle" fill="#6c8aff" font-family="Inter, sans-serif" font-size="11" font-weight="600">0.76</text>
-        <text x="507" y="300" text-anchor="middle" fill="#e0e2f0" font-family="Inter, sans-serif" font-size="12">P@50</text>
-
-        <!-- Legend -->
-        <rect x="100" y="44" width="12" height="12" fill="#f25f5c" rx="2"/>
-        <text x="118" y="54" fill="#9094b8" font-family="Inter, sans-serif" font-size="11">Rule Baseline</text>
-        <rect x="220" y="44" width="12" height="12" fill="#6c8aff" rx="2"/>
-        <text x="238" y="54" fill="#9094b8" font-family="Inter, sans-serif" font-size="11">Random Forest</text>
-      </svg>
+          <!-- Legend -->
+          <rect x="120" y="42" width="10" height="10" fill="#f87171" rx="2"/>
+          <text x="135" y="51" fill="#b0b5d0" font-family="Inter, sans-serif" font-size="10">Rule Baseline</text>
+          <rect x="240" y="42" width="10" height="10" fill="#a78bfa" rx="2"/>
+          <text x="255" y="51" fill="#b0b5d0" font-family="Inter, sans-serif" font-size="10">Logistic Regression</text>
+          <rect x="390" y="42" width="10" height="10" fill="#6c8aff" rx="2"/>
+          <text x="405" y="51" fill="#b0b5d0" font-family="Inter, sans-serif" font-size="10">Random Forest</text>
+        </svg>
+      </div>
+      <p class="figure-caption"><strong>Figure 1.</strong> Precision@K comparison on the grouped test fold (4,610 rows, 8 held-out clients). The Random Forest (blue) surfaces approximately 1.9× more true under-CTR pages in the top 50 than the rule baseline (red). Dashed yellow line marks the base rate (47.9%).</p>
     </div>
-    <p class="figure-caption"><strong>Figure 1.</strong> Precision@K comparison on the grouped test fold. The Random Forest model surfaces approximately 1.9× more true under-CTR pages in the top 50 than the rule baseline. The dashed orange line marks the base rate (47.9%).</p>
 
-    <h3>Top features</h3>
+    <!-- ── Chart 2: Feature Importance Lollipop ────────────── -->
+    <h3>Top features (permutation importance)</h3>
     <p>
-      Permutation importance (measured on the grouped test fold) identified five features with the largest impact on the model's AUC:
+      Permutation importance (measured on the grouped test fold) identified features with the largest impact on the model's AUC when shuffled:
     </p>
+
+    <div class="chart-container">
+      <div class="chart-wrap">
+        <svg viewBox="0 0 600 280" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Horizontal lollipop chart showing permutation importance of top 5 features">
+          <!-- Title -->
+          <text x="300" y="26" text-anchor="middle" fill="#f4f6ff" font-family="Inter, sans-serif" font-size="13" font-weight="700">Permutation Importance — AUC Drop When Feature Shuffled</text>
+
+          <!-- Feature 1: days_with_sessions = 0.039 -->
+          <text x="188" y="72" text-anchor="end" fill="#b0b5d0" font-family="JetBrains Mono, monospace" font-size="11">days_with_sessions</text>
+          <line x1="196" y1="68" x2="510" y2="68" stroke="#232740" stroke-width="1" stroke-dasharray="3,3"/>
+          <line x1="196" y1="68" x2="510" y2="68" stroke="#6c8aff" stroke-width="3" stroke-linecap="round">
+            <animate attributeName="x2" from="196" to="510" dur="0.8s" fill="freeze"/>
+          </line>
+          <circle cx="510" cy="68" r="6" fill="#6c8aff">
+            <animate attributeName="cx" from="196" to="510" dur="0.8s" fill="freeze"/>
+          </circle>
+          <text x="522" y="72" fill="#6c8aff" font-family="Inter, sans-serif" font-size="11" font-weight="600">0.039</text>
+
+          <!-- Feature 2: engagement_rate = 0.022 -->
+          <text x="188" y="116" text-anchor="end" fill="#b0b5d0" font-family="JetBrains Mono, monospace" font-size="11">engagement_rate</text>
+          <line x1="196" y1="112" x2="373" y2="112" stroke="#232740" stroke-width="1" stroke-dasharray="3,3"/>
+          <line x1="196" y1="112" x2="373" y2="112" stroke="#34d399" stroke-width="3" stroke-linecap="round">
+            <animate attributeName="x2" from="196" to="373" dur="0.8s" begin="0.1s" fill="freeze"/>
+          </line>
+          <circle cx="373" cy="112" r="6" fill="#34d399">
+            <animate attributeName="cx" from="196" to="373" dur="0.8s" begin="0.1s" fill="freeze"/>
+          </circle>
+          <text x="385" y="116" fill="#34d399" font-family="Inter, sans-serif" font-size="11" font-weight="600">0.022</text>
+
+          <!-- Feature 3: pageviews_90d = 0.014 -->
+          <text x="188" y="160" text-anchor="end" fill="#b0b5d0" font-family="JetBrains Mono, monospace" font-size="11">pageviews_90d</text>
+          <line x1="196" y1="156" x2="309" y2="156" stroke="#232740" stroke-width="1" stroke-dasharray="3,3"/>
+          <line x1="196" y1="156" x2="309" y2="156" stroke="#fbbf24" stroke-width="3" stroke-linecap="round">
+            <animate attributeName="x2" from="196" to="309" dur="0.8s" begin="0.2s" fill="freeze"/>
+          </line>
+          <circle cx="309" cy="156" r="6" fill="#fbbf24">
+            <animate attributeName="cx" from="196" to="309" dur="0.8s" begin="0.2s" fill="freeze"/>
+          </circle>
+          <text x="321" y="160" fill="#fbbf24" font-family="Inter, sans-serif" font-size="11" font-weight="600">0.014</text>
+
+          <!-- Feature 4: impressions_90d = 0.013 -->
+          <text x="188" y="204" text-anchor="end" fill="#b0b5d0" font-family="JetBrains Mono, monospace" font-size="11">impressions_90d</text>
+          <line x1="196" y1="200" x2="301" y2="200" stroke="#232740" stroke-width="1" stroke-dasharray="3,3"/>
+          <line x1="196" y1="200" x2="301" y2="200" stroke="#f87171" stroke-width="3" stroke-linecap="round">
+            <animate attributeName="x2" from="196" to="301" dur="0.8s" begin="0.3s" fill="freeze"/>
+          </line>
+          <circle cx="301" cy="200" r="6" fill="#f87171">
+            <animate attributeName="cx" from="196" to="301" dur="0.8s" begin="0.3s" fill="freeze"/>
+          </circle>
+          <text x="313" y="204" fill="#f87171" font-family="Inter, sans-serif" font-size="11" font-weight="600">0.013</text>
+
+          <!-- Feature 5: sessions_90d = 0.009 -->
+          <text x="188" y="248" text-anchor="end" fill="#b0b5d0" font-family="JetBrains Mono, monospace" font-size="11">sessions_90d</text>
+          <line x1="196" y1="244" x2="269" y2="244" stroke="#232740" stroke-width="1" stroke-dasharray="3,3"/>
+          <line x1="196" y1="244" x2="269" y2="244" stroke="#a78bfa" stroke-width="3" stroke-linecap="round">
+            <animate attributeName="x2" from="196" to="269" dur="0.8s" begin="0.4s" fill="freeze"/>
+          </line>
+          <circle cx="269" cy="244" r="6" fill="#a78bfa">
+            <animate attributeName="cx" from="196" to="269" dur="0.8s" begin="0.4s" fill="freeze"/>
+          </circle>
+          <text x="281" y="248" fill="#a78bfa" font-family="Inter, sans-serif" font-size="11" font-weight="600">0.009</text>
+        </svg>
+      </div>
+      <p class="figure-caption"><strong>Figure 2.</strong> Permutation importance (AUC drop) for the top 5 features on the grouped test fold. <code>days_with_sessions</code> (session consistency) is the most informative signal, followed by <code>engagement_rate</code>.</p>
+    </div>
 
     <div class="table-wrapper">
       <table>
@@ -379,10 +507,42 @@
       </table>
     </div>
 
-    <h3>Score distribution</h3>
-    <div class="figure-container">
-      <img src="img/score_distribution.png" alt="Model score distribution showing the full queue of 22,006 pages, with action threshold at 0.5 and base rate at 0.47" loading="lazy">
-      <p class="figure-caption"><strong>Figure 2.</strong> Distribution of model scores P(under-CTR) across all 22,006 pages. The red dashed line marks the 0.5 action threshold; the green dotted line marks the base rate (0.47). Pages scoring above 0.5 are flagged for editor review.</p>
+    <!-- ── Chart 3: AUC Comparison ─────────────────────────── -->
+    <h3>AUC comparison</h3>
+
+    <div class="chart-container">
+      <div class="chart-wrap">
+        <svg viewBox="0 0 600 200" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Horizontal bar chart comparing AUC across methods">
+          <text x="300" y="24" text-anchor="middle" fill="#f4f6ff" font-family="Inter, sans-serif" font-size="13" font-weight="700">AUC Comparison (Grouped Test Fold)</text>
+
+          <!-- Random line at 0.50 -->
+          <!-- Scale: 0.0 at x=180, 1.0 at x=560. 0.50 => x=370 -->
+          <line x1="370" y1="45" x2="370" y2="175" stroke="#555a7e" stroke-width="1" stroke-dasharray="4,3"/>
+          <text x="370" y="188" text-anchor="middle" fill="#555a7e" font-family="Inter, sans-serif" font-size="9">Random (0.50)</text>
+
+          <!-- Rule Baseline: AUC=0.47 => width = 0.47 * 380 = 178.6 -->
+          <text x="174" y="72" text-anchor="end" fill="#b0b5d0" font-family="Inter, sans-serif" font-size="11">Rule Baseline</text>
+          <rect x="180" y="58" width="179" height="24" fill="#f87171" rx="4" opacity="0.85">
+            <animate attributeName="width" from="0" to="179" dur="0.7s" fill="freeze"/>
+          </rect>
+          <text x="365" y="75" fill="#f87171" font-family="Inter, sans-serif" font-size="11" font-weight="600">0.47</text>
+
+          <!-- Logistic Regression: AUC=0.70 => width = 0.70 * 380 = 266 -->
+          <text x="174" y="112" text-anchor="end" fill="#b0b5d0" font-family="Inter, sans-serif" font-size="11">Logistic Regression</text>
+          <rect x="180" y="98" width="266" height="24" fill="#a78bfa" rx="4" opacity="0.85">
+            <animate attributeName="width" from="0" to="266" dur="0.7s" begin="0.15s" fill="freeze"/>
+          </rect>
+          <text x="452" y="115" fill="#a78bfa" font-family="Inter, sans-serif" font-size="11" font-weight="600">0.70</text>
+
+          <!-- Random Forest: AUC=0.72 => width = 0.72 * 380 = 273.6 -->
+          <text x="174" y="152" text-anchor="end" fill="#b0b5d0" font-family="Inter, sans-serif" font-size="11">Random Forest</text>
+          <rect x="180" y="138" width="274" height="24" fill="#6c8aff" rx="4" opacity="0.85">
+            <animate attributeName="width" from="0" to="274" dur="0.7s" begin="0.3s" fill="freeze"/>
+          </rect>
+          <text x="460" y="155" fill="#6c8aff" font-family="Inter, sans-serif" font-size="11" font-weight="600">0.72</text>
+        </svg>
+      </div>
+      <p class="figure-caption"><strong>Figure 3.</strong> AUC on the grouped test fold. The vertical dashed line marks random performance (0.50). The rule baseline scores below random; both ML models achieve moderate discrimination above chance.</p>
     </div>
 
     <h3>Error analysis</h3>
@@ -427,9 +587,47 @@
       The model-scored action queue flagged <strong>12,616 pages</strong> (score &gt; 0.5) from the 22,006-page working slice. These were assigned reason codes based on the dominant signals behind each flag. Below is the recommended action priority, ordered by expected impact:
     </p>
 
-    <div class="figure-container">
-      <img src="img/reason_code_distribution.png" alt="Horizontal bar chart showing reason code distribution: general CTR opportunity (7,419), low session consistency (3,884), position decay risk (971), high-volume underperformer (342)" loading="lazy">
-      <p class="figure-caption"><strong>Figure 3.</strong> Reason code distribution across flagged pages. The queue is designed so editors can filter by reason code and match the action to the diagnosis.</p>
+    <!-- ── Chart 4: Reason Code Distribution ───────────────── -->
+    <div class="chart-container">
+      <div class="chart-wrap">
+        <svg viewBox="0 0 600 240" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Horizontal bar chart showing reason code distribution across flagged pages">
+          <text x="300" y="24" text-anchor="middle" fill="#f4f6ff" font-family="Inter, sans-serif" font-size="13" font-weight="700">Action Queue — Reason Code Distribution</text>
+
+          <!-- Scale: max=7419, map to x=196..550 (354px range) -->
+
+          <!-- General CTR Opportunity: 7,419 -->
+          <text x="190" y="72" text-anchor="end" fill="#b0b5d0" font-family="Inter, sans-serif" font-size="10">General CTR Opportunity</text>
+          <rect x="196" y="58" width="354" height="22" fill="#6c8aff" rx="4" opacity="0.85">
+            <animate attributeName="width" from="0" to="354" dur="0.7s" fill="freeze"/>
+          </rect>
+          <text x="556" y="73" fill="#6c8aff" font-family="Inter, sans-serif" font-size="10" font-weight="600">7,419</text>
+
+          <!-- Low Session Consistency: 4,405 -->
+          <text x="190" y="110" text-anchor="end" fill="#b0b5d0" font-family="Inter, sans-serif" font-size="10">Low Session Consistency</text>
+          <rect x="196" y="96" width="210" height="22" fill="#34d399" rx="4" opacity="0.85">
+            <animate attributeName="width" from="0" to="210" dur="0.7s" begin="0.1s" fill="freeze"/>
+          </rect>
+          <text x="412" y="111" fill="#34d399" font-family="Inter, sans-serif" font-size="10" font-weight="600">4,405</text>
+
+          <!-- Position Decay Risk: 1,788 -->
+          <text x="190" y="148" text-anchor="end" fill="#b0b5d0" font-family="Inter, sans-serif" font-size="10">Position Decay Risk</text>
+          <rect x="196" y="134" width="85" height="22" fill="#fbbf24" rx="4" opacity="0.85">
+            <animate attributeName="width" from="0" to="85" dur="0.7s" begin="0.2s" fill="freeze"/>
+          </rect>
+          <text x="287" y="149" fill="#fbbf24" font-family="Inter, sans-serif" font-size="10" font-weight="600">1,788</text>
+
+          <!-- High-Volume Underperformer: 342 -->
+          <text x="190" y="186" text-anchor="end" fill="#b0b5d0" font-family="Inter, sans-serif" font-size="10">High-Volume Underperformer</text>
+          <rect x="196" y="172" width="16" height="22" fill="#f87171" rx="4" opacity="0.85">
+            <animate attributeName="width" from="0" to="16" dur="0.7s" begin="0.3s" fill="freeze"/>
+          </rect>
+          <text x="218" y="187" fill="#f87171" font-family="Inter, sans-serif" font-size="10" font-weight="600">342</text>
+
+          <!-- Total label -->
+          <text x="300" y="222" text-anchor="middle" fill="#7a80a8" font-family="Inter, sans-serif" font-size="10" font-style="italic">12,616 pages flagged total (score &gt; 0.5) from 22,006 working slice</text>
+        </svg>
+      </div>
+      <p class="figure-caption"><strong>Figure 4.</strong> Reason code distribution across flagged pages. The queue is designed so editors can filter by reason code and match the action to the diagnosis.</p>
     </div>
 
     <ol class="rec-list">
@@ -438,11 +636,11 @@
         <p>Pages with high impressions but low CTR relative to position peers. These represent the largest absolute click opportunity. <strong>Recommended action:</strong> title and meta description audit, structured data review. <strong>Confidence:</strong> High — large volume means even small CTR gains compound.</p>
       </li>
       <li>
-        <h4>Position Decay Risk (971 pages) — Protect Visibility</h4>
-        <p>Pages showing signs of declining average position combined with under-CTR. <strong>Recommended action:</strong> content freshness check, internal linking audit, competitor analysis. <strong>Confidence:</strong> Moderate — position changes may be seasonal or competitive.</p>
+        <h4>Position Decay Risk (1,788 pages) — Protect Visibility</h4>
+        <p>Pages in striking distance (positions 11–20) with stale content showing signs of under-CTR. <strong>Recommended action:</strong> content freshness check, internal linking audit, competitor analysis. <strong>Confidence:</strong> Moderate — position changes may be seasonal or competitive.</p>
       </li>
       <li>
-        <h4>Low Session Consistency (3,884 pages) — Investigate Engagement</h4>
+        <h4>Low Session Consistency (4,405 pages) — Investigate Engagement</h4>
         <p>Pages with sporadic session activity (low <code>days_with_sessions</code>). The model weights this signal most heavily. <strong>Recommended action:</strong> on-page experience audit (load time, readability, mobile UX, content depth). <strong>Confidence:</strong> Moderate — engagement may reflect content quality or query intent mismatch.</p>
       </li>
       <li>
@@ -486,7 +684,8 @@ python scripts/run_all.py
 # work/notebooks/w04_baseline_score.ipynb  — baseline
 # work/notebooks/w05_model.ipynb           — model training
 # work/notebooks/w06_validation_audit.ipynb — validation
-# work/notebooks/w07_action_playbook.ipynb  — action queue</pre>
+# work/notebooks/w07_action_playbook.ipynb  — action queue
+# work/notebooks/capstone.ipynb             — capstone integration</pre>
 
     <h3>Notebooks</h3>
     <div class="table-wrapper">
@@ -498,6 +697,8 @@ python scripts/run_all.py
           <tr><td>1</td><td><code>w01_research_question.ipynb</code></td><td>Research question and lane selection</td></tr>
           <tr><td>2</td><td><code>w02_ml_task_framing.ipynb</code></td><td>ML task framing and feature plan</td></tr>
           <tr><td>3</td><td><code>w03_data_contract.ipynb</code></td><td>Data contract on the full warehouse</td></tr>
+          <tr><td>3</td><td><code>w03_feature_leakage_check.ipynb</code></td><td>Feature leakage audit</td></tr>
+          <tr><td>4</td><td><code>w04_signal_audit.ipynb</code></td><td>Signal audit and hypothesis testing</td></tr>
           <tr><td>4</td><td><code>w04_baseline_score.ipynb</code></td><td>Rule baseline and signal audit</td></tr>
           <tr><td>5</td><td><code>w05_model.ipynb</code></td><td>Model training and head-to-head comparison</td></tr>
           <tr><td>6</td><td><code>w06_validation_audit.ipynb</code></td><td>Grouped validation and claim audit</td></tr>
@@ -544,16 +745,19 @@ python scripts/run_all.py
       Thanks to the FlyRank team, track leads Mirza Ašćerić (ML) and Hole (data engineering), and the internship program for making this dataset available for research.
       This research was completed as part of the FlyRank ML Internship capstone, August 2026.
     </p>
-    <p style="margin-top: 32px; font-size: 0.78rem; color: var(--color-text-dim);">
+    <p class="footer-credit">
       © 2026 Shreeyesh Baral · Code under MIT License · Data use governed by <a href="https://github.com/shreeyeshbaral/ShreeyeshAssignment1/blob/main/DATA_USE.md">DATA_USE.md</a>
     </p>
   </section>
 
 </main>
 
-<!-- ── Scroll progress + nav highlight script ────────────── -->
+<!-- ── JavaScript: Progress bar, nav highlight, scroll reveal, counter animation ── -->
 <script>
-  // Progress bar
+(function () {
+  'use strict';
+
+  // ── Progress bar ──
   const progressBar = document.getElementById('progressBar');
   const topNav = document.getElementById('topNav');
 
@@ -563,7 +767,6 @@ python scripts/run_all.py
     const progress = docHeight > 0 ? (scrollTop / docHeight) * 100 : 0;
     progressBar.style.width = progress + '%';
 
-    // Nav shadow
     if (scrollTop > 10) {
       topNav.classList.add('scrolled');
     } else {
@@ -571,21 +774,21 @@ python scripts/run_all.py
     }
   }
 
-  // Active nav link highlight
+  // ── Active nav link highlight ──
   const sections = document.querySelectorAll('.paper-section, #abstract');
   const navLinks = document.querySelectorAll('.nav-links a');
 
   function updateActiveNav() {
-    const scrollPos = window.scrollY + 100;
+    const scrollPos = window.scrollY + 120;
     let current = '';
 
-    sections.forEach(section => {
+    sections.forEach(function (section) {
       if (section.offsetTop <= scrollPos) {
         current = section.id;
       }
     });
 
-    navLinks.forEach(link => {
+    navLinks.forEach(function (link) {
       link.classList.remove('active');
       if (link.getAttribute('href') === '#' + current) {
         link.classList.add('active');
@@ -593,15 +796,88 @@ python scripts/run_all.py
     });
   }
 
-  window.addEventListener('scroll', () => {
-    requestAnimationFrame(() => {
-      updateProgress();
-      updateActiveNav();
-    });
+  // ── Scroll-driven reveal (IntersectionObserver) ──
+  const revealTargets = document.querySelectorAll(
+    '.paper-section, .abstract-box, .stat-grid, .chart-container, .table-wrapper, .rec-list li'
+  );
+
+  const revealObserver = new IntersectionObserver(
+    function (entries) {
+      entries.forEach(function (entry) {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('is-visible');
+          revealObserver.unobserve(entry.target);
+        }
+      });
+    },
+    { threshold: 0.08, rootMargin: '0px 0px -40px 0px' }
+  );
+
+  revealTargets.forEach(function (el) {
+    revealObserver.observe(el);
   });
 
+  // ── Counter animation for stat values ──
+  const counterTargets = document.querySelectorAll('.stat-value[data-count]');
+  const counterObserver = new IntersectionObserver(
+    function (entries) {
+      entries.forEach(function (entry) {
+        if (entry.isIntersecting) {
+          animateCounter(entry.target);
+          counterObserver.unobserve(entry.target);
+        }
+      });
+    },
+    { threshold: 0.5 }
+  );
+
+  counterTargets.forEach(function (el) {
+    counterObserver.observe(el);
+  });
+
+  function animateCounter(el) {
+    var target = parseInt(el.getAttribute('data-count'), 10);
+    var duration = 1200;
+    var startTime = null;
+
+    function step(timestamp) {
+      if (!startTime) startTime = timestamp;
+      var progress = Math.min((timestamp - startTime) / duration, 1);
+      // Ease out cubic
+      var eased = 1 - Math.pow(1 - progress, 3);
+      var current = Math.floor(eased * target);
+      el.textContent = current.toLocaleString();
+      if (progress < 1) {
+        requestAnimationFrame(step);
+      } else {
+        el.textContent = target.toLocaleString();
+      }
+    }
+
+    requestAnimationFrame(step);
+  }
+
+  // ── Scroll event handler (throttled via rAF) ──
+  var ticking = false;
+  window.addEventListener('scroll', function () {
+    if (!ticking) {
+      requestAnimationFrame(function () {
+        updateProgress();
+        updateActiveNav();
+        ticking = false;
+      });
+      ticking = true;
+    }
+  });
+
+  // Initial calls
   updateProgress();
   updateActiveNav();
+
+  // Make hero always visible immediately
+  var hero = document.querySelector('.paper-hero');
+  if (hero) hero.style.opacity = '1';
+})();
 </script>
 
 </body>
